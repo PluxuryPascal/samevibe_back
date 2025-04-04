@@ -1,4 +1,5 @@
 from django.shortcuts import render
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import generics, views, status, mixins
 from rest_framework.response import Response
 
@@ -70,6 +71,9 @@ class UserInterestAPIView(
     """
 
     serializer_class = UserInterestSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_queryset(self):
         """
@@ -147,6 +151,9 @@ class UserHobbyAPIView(
     """
 
     serializer_class = UserHobbiesSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_queryset(self):
         """
@@ -222,6 +229,9 @@ class UserMusicAPIView(
     """
 
     serializer_class = UserMusicSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
     def get_queryset(self):
         """
