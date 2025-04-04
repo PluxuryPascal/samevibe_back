@@ -42,6 +42,38 @@ class ProfileSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ("username", "first_name", "last_name", "email", "password")
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data.get("email", ""),
+            password=validated_data["password"],
+            first_name=validated_data.get("first_name", ""),
+            last_name=validated_data.get("last_name", ""),
+        )
+        return user
+
+
+class ProfileRegisterSerializer(serializers.ModelSerializer):
+    user = UserRegisterSerializer()
+
+    class Meta:
+        model = Profile
+        fields = ("user", "photo", "gender")
+
+    def create(self, validated_data):
+        user_data = validated_data.pop("user")
+        user = UserRegisterSerializer().create(user_data)
+        profile = Profile.objects.create(user=user, **validated_data)
+        return profile
+
+
 class InterestMatchedUserSerializer(serializers.ModelSerializer):
     percentage = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()

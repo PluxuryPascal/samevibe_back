@@ -35,6 +35,7 @@ from interests.views import (
 from friends.views import FriendshipAPIList
 from users.views import (
     ProfileAPIView,
+    UserRegisterAPIView,
     InterestUserSearchAPIView,
     HobbyUserSearchAPIView,
     MusicUserSearchAPIView,
@@ -77,5 +78,6 @@ urlpatterns = [
     path("api/v1/interest-search/", InterestUserSearchAPIView.as_view()),
     path("api/v1/hobby-search/", HobbyUserSearchAPIView.as_view()),
     path("api/v1/music-search/", MusicUserSearchAPIView.as_view()),
+    path("api/v1/register/", UserRegisterAPIView.as_view()),
     # path("", include("chat.urls")),
 ]

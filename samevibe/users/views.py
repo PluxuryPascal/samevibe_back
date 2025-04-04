@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import generics
 
 from .models import Profile
 from .serializer import (
     ProfileSerializer,
+    ProfileRegisterSerializer,
     InterestMatchedUserSerializer,
     HobbyMatchedUserSerializer,
     MusicMatchedUserSerializer,
@@ -39,6 +40,15 @@ class ProfileAPIView(generics.RetrieveUpdateAPIView):
         """
 
         return Profile.objects.get(user=self.request.user)
+
+
+class UserRegisterAPIView(generics.CreateAPIView):
+
+    queryset = Profile.objects.all()
+    serializer_class = ProfileRegisterSerializer
+    permission_classes = [
+        AllowAny,
+    ]
 
 
 class InterestUserSearchAPIView(generics.ListAPIView):
