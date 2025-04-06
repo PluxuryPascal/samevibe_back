@@ -90,32 +90,20 @@ class UserInterestAPIView(
 
         return self.list(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         """
-        Create a new user-interest association for the current user.
-
-        The request should include the interest ID in the field 'interest_id'.
-
-        Returns:
-            Response: A DRF Response with the created object data.
-        """
-
-        return self.create(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        """
-        Bulk update the interests associated with the current user.
+        Bulk update or create the interests associated with the current user.
 
         The request body should be a JSON object containing an array of interest IDs:
             { "interest_ids": [1, 3, 5] }
 
         Returns:
-            Response: A DRF Response with a success message if updated, or error details.
+            Response: A DRF Response with a success message if updated or created, or error details.
         """
-
         interest_ids = request.data.get("interest_ids", [])
         user = request.user
 
+        # Проверяем, что все переданные интересы существуют
         interests = Interest.objects.filter(id__in=interest_ids)
         if interests.count() != len(interest_ids):
             return Response(
@@ -123,9 +111,13 @@ class UserInterestAPIView(
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Обновление: удаляем все старые связи и создаём новые
         UserInterest.objects.filter(user=user).delete()
-        for interest_id in interest_ids:
-            UserInterest.objects.create(user=user, interest_id=interest_id)
+        new_records = [
+            UserInterest(user=user, interest_id=interest_id)
+            for interest_id in interest_ids
+        ]
+        UserInterest.objects.bulk_create(new_records)
 
         return Response({"detail": "Интересы обновлены."}, status=status.HTTP_200_OK)
 
@@ -169,32 +161,20 @@ class UserHobbyAPIView(
 
         return self.list(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         """
-        Create a new user-hobby association for the current user.
+        Bulk update or create the hobbies associated with the current user.
+
+        The request body should be a JSON object containing an array of hobbies IDs:
+            { "hobby_ids": [1, 3, 5] }
 
         Returns:
-            Response: A DRF Response with the created object data.
+            Response: A DRF Response with a success message if updated or created, or error details.
         """
-
-        return self.create(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        """
-        Bulk update the hobbies associated with the current user.
-
-        The request body should contain a JSON object with a key 'hobby_ids':
-            { "hobby_ids": [2, 4, 6] }
-
-        Returns:
-            Response: A DRF Response with a success message or error details.
-        """
-
         hobby_ids = request.data.get("hobby_ids", [])
         user = request.user
 
         hobbies = Hobby.objects.filter(id__in=hobby_ids)
-
         if hobbies.count() != len(hobby_ids):
             return Response(
                 {"detail": "Некоторые хобби не найдены."},
@@ -202,8 +182,10 @@ class UserHobbyAPIView(
             )
 
         UserHobby.objects.filter(user=user).delete()
-        for hobby_id in hobby_ids:
-            UserHobby.objects.create(user=user, hobby_id=hobby_id)
+        new_records = [
+            UserHobby(user=user, hobby_id=hobby_id) for hobby_id in hobby_ids
+        ]
+        UserHobby.objects.bulk_create(new_records)
 
         return Response({"detail": "Хобби обновлены."}, status=status.HTTP_200_OK)
 
@@ -248,41 +230,30 @@ class UserMusicAPIView(
 
         return self.list(request, *args, **kwargs)
 
-    def post(self, request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         """
-        Create a new user-music association for the current user.
+        Bulk update or create the musics associated with the current user.
+
+        The request body should be a JSON object containing an array of musics IDs:
+            { "music_ids": [1, 3, 5] }
 
         Returns:
-            Response: A DRF Response with the created object data.
+            Response: A DRF Response with a success message if updated or created, or error details.
         """
-
-        return self.create(request, *args, **kwargs)
-
-    def patch(self, request, *args, **kwargs):
-        """
-        Bulk update the music genres associated with the current user.
-
-        The request body should contain a JSON object with a key 'music_ids':
-            { "music_ids": [1, 2, 3] }
-
-        Returns:
-            Response: A DRF Response with a success message or error details.
-        """
-
         music_ids = request.data.get("music_ids", [])
         user = request.user
 
         musics = MusicGenre.objects.filter(id__in=music_ids)
-
         if musics.count() != len(music_ids):
             return Response(
-                {"detail": "Некоторые музыкальные жанры не найдены."},
+                {"detail": "Некоторые жанры не найдены."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         UserMusic.objects.filter(user=user).delete()
-        for music_id in music_ids:
-            UserMusic.objects.create(user=user, music_id=music_id)
-        return Response(
-            {"detail": "Музыкальные жанры обновлены."}, status=status.HTTP_200_OK
-        )
+        new_records = [
+            UserMusic(user=user, genre_id=genre_id) for genre_id in music_ids
+        ]
+        UserMusic.objects.bulk_create(new_records)
+
+        return Response({"detail": "Жанры обновлены."}, status=status.HTTP_200_OK)
