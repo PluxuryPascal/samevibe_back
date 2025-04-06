@@ -35,13 +35,11 @@ class MusicGenreSerializer(serializers.ModelSerializer):
 
 class UserInterestSerializer(serializers.ModelSerializer):
 
-    interest_id = serializers.PrimaryKeyRelatedField(
-        queryset=Interest.objects.all(), source="interest"
-    )
+    interest = InterestSerializer()
 
     class Meta:
         model = UserInterest
-        fields = ("interest_id",)
+        fields = ("interest",)
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -50,13 +48,11 @@ class UserInterestSerializer(serializers.ModelSerializer):
 
 class UserHobbiesSerializer(serializers.ModelSerializer):
 
-    hobby_id = serializers.PrimaryKeyRelatedField(
-        queryset=Hobby.objects.all(), source="hobby"
-    )
+    hobby = HobbySerializer()
 
     class Meta:
         model = UserHobby
-        fields = ("hobby_id",)
+        fields = ("hobby",)
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -65,13 +61,11 @@ class UserHobbiesSerializer(serializers.ModelSerializer):
 
 class UserMusicSerializer(serializers.ModelSerializer):
 
-    music_id = serializers.PrimaryKeyRelatedField(
-        queryset=MusicGenre.objects.all(), source="genre"
-    )
+    genre = MusicGenreSerializer()
 
     class Meta:
         model = UserMusic
-        fields = ("music_id",)
+        fields = ("genre",)
 
     def create(self, validated_data):
         user = self.context["request"].user
