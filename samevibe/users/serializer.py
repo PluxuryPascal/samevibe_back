@@ -123,9 +123,16 @@ class InterestMatchedUserSerializer(serializers.ModelSerializer):
             | Q(from_user=obj, to_user=current_user)
         ).first()
 
-        if friendship:
-            return friendship.status
-        return None
+        if not friendship:
+            return None
+
+        if friendship.status == "accepted":
+            return "accepted"
+        # sended:
+        if friendship.from_user == obj:
+            return "incoming"
+        else:
+            return "outgoing"
 
     def get_gender(self, obj):
         try:
@@ -181,9 +188,16 @@ class HobbyMatchedUserSerializer(serializers.ModelSerializer):
             | Q(from_user=obj, to_user=current_user)
         ).first()
 
-        if friendship:
-            return friendship.status
-        return None
+        if not friendship:
+            return None
+
+        if friendship.status == "accepted":
+            return "accepted"
+        # sended:
+        if friendship.from_user == obj:
+            return "incoming"
+        else:
+            return "outgoing"
 
     def get_gender(self, obj):
         try:
@@ -239,9 +253,16 @@ class MusicMatchedUserSerializer(serializers.ModelSerializer):
             | Q(from_user=obj, to_user=current_user)
         ).first()
 
-        if friendship:
-            return friendship.status
-        return None
+        if not friendship:
+            return None
+
+        if friendship.status == "accepted":
+            return "accepted"
+        # sended:
+        if friendship.from_user == obj:
+            return "incoming"
+        else:
+            return "outgoing"
 
     def get_gender(self, obj):
         try:
