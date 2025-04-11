@@ -10,6 +10,7 @@ from .serializer import (
     InterestMatchedUserSerializer,
     HobbyMatchedUserSerializer,
     MusicMatchedUserSerializer,
+    UserIdSerializer,
 )
 
 
@@ -76,3 +77,11 @@ class MusicUserSearchAPIView(generics.ListAPIView):
     def get_queryset(self):
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
+
+
+class UserIdApiView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserIdSerializer
+
+    def get_object(self):
+        return self.request.user

@@ -14,15 +14,34 @@ class UserInfoSerializer(serializers.ModelSerializer):
 
 class ChatSerializer(serializers.ModelSerializer):
     other_user = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+    last_time = serializers.SerializerMethodField()
 
     class Meta:
         model = Chats
-        fields = ("id", "user1", "user2", "created_at", "updated_at", "other_user")
+        fields = (
+            "id",
+            "user1",
+            "user2",
+            "created_at",
+            "updated_at",
+            "other_user",
+            "last_message",
+            "last_time",
+        )
 
     def get_other_user(self, instance):
         me = self.context["request"].user
         other = instance.user2 if instance.user1 == me else instance.user1
         return UserInfoSerializer(other).data
+
+    def get_last_message(self, instance):
+        msg = instance.contents_set.order_by("-created_at").first()
+        return msg.text if msg else ""
+
+    def get_last_time(self, instance):
+        msg = instance.contents_set.order_by("-created_at").first()
+        return msg.created_at.isoformat() if msg else None
 
 
 class ContentSerializer(serializers.ModelSerializer):

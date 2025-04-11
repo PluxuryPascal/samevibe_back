@@ -269,3 +269,10 @@ class MusicMatchedUserSerializer(serializers.ModelSerializer):
             return obj.profile.gender
         except Profile.DoesNotExist:
             return None
+
+
+class UserIdSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+
+    def to_representation(self, instance):
+        return {"id": instance.id}

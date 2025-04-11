@@ -57,23 +57,18 @@ class ChatAPIView(
         write_ser = self.get_serializer(data=data, context={"request": request})
         write_ser.is_valid(raise_exception=True)
         self.perform_create(write_ser)
+
         chat = write_ser.instance
 
         # отдадим «read» сериализатор
         read_ser = self.get_serializer(chat, context={"request": request})
 
-        # оповещаем другого пользователя по WebSocket
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f"chat_list_updates_{to_user_id}",
-            {
-                "type": "chat_update",
-                "data": {
-                    "message": "Новый чат создан",
-                    "chat": read_ser.data,
-                },
-            },
-        )
+        cl = get_channel_layer()
+        for uid in (me.id, to_user_id):
+            async_to_sync(cl.group_send)(
+                f"chat_list_updates_{uid}",
+                {"type": "chat_update", "data": read_ser.data},
+            )
 
         return Response(read_ser.data, status=status.HTTP_201_CREATED)
 

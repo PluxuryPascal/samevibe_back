@@ -5,10 +5,12 @@ from .views import (
     InterestUserSearchAPIView,
     HobbyUserSearchAPIView,
     MusicUserSearchAPIView,
+    UserIdApiView,
 )
 
 urlpatterns = [
     path("profile/", ProfileAPIView.as_view(), name="profile"),
+    path("userid/", UserIdApiView.as_view(), name="id"),
     path("register/", UserRegisterAPIView.as_view(), name="register"),
     path(
         "interest-search/", InterestUserSearchAPIView.as_view(), name="interest-search"
