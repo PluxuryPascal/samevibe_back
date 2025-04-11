@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ChatAPIView, ChatContentAPIView, ContentRetriveUpdateAPIView
+from .views import ChatAPIView, ChatContentAPIView, ContentRetrieveUpdateAPIView
 
 urlpatterns = [
     path("chats/", ChatAPIView.as_view(), name="chats"),
@@ -10,7 +10,7 @@ urlpatterns = [
     ),
     path(
         "messages/<int:pk>/",
-        ContentRetriveUpdateAPIView.as_view(),
+        ContentRetrieveUpdateAPIView.as_view(),
         name="contents-detail",
     ),
 ]
