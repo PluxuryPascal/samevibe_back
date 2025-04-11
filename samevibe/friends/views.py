@@ -5,7 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
 from .models import Friendship
-from .serializer import FriendshipSerializer
+from .serializer import (
+    FriendshipReadSerializer,
+    FriendshipWriteSerializer,
+)
 
 
 class FriendshipAPIList(viewsets.ViewSet):
@@ -40,18 +43,18 @@ class FriendshipAPIList(viewsets.ViewSet):
         """
 
         user = request.user
-        queryset = Friendship.objects.filter(Q(from_user=user) | Q(to_user=user))
+        qs = Friendship.objects.filter(Q(from_user=user) | Q(to_user=user))
         cat = request.query_params.get("cat")
-
         if cat == "accepted":
-            queryset = queryset.filter(status=cat)
+            qs = qs.filter(status="accepted")
         elif cat == "sended":
-            queryset = queryset.filter(from_user=user, status=cat)
+            qs = qs.filter(from_user=user, status="sended")
         elif cat == "received":
-            queryset = queryset.filter(to_user=user, status="sended")
+            qs = qs.filter(to_user=user, status="sended")
 
-        serializer = FriendshipSerializer(queryset, many=True)
-
+        serializer = FriendshipReadSerializer(
+            qs, many=True, context={"request": request}
+        )
         return Response(serializer.data)
 
     def create(self, request):
@@ -72,18 +75,19 @@ class FriendshipAPIList(viewsets.ViewSet):
                       or error details if validation fails.
         """
 
-        to_user_id = request.data.get("to_user")
-        if not to_user_id:
-            return Response(
-                {"detail": "Необходимо указать получателя заявки."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        data = {"from_user": request.user.id, "to_user": to_user_id, "status": "sended"}
-
-        serializer = FriendshipSerializer(data=data)
+        data = {
+            "from_user": request.user.id,
+            "to_user": request.data.get("to_user"),
+            "status": "sended",
+        }
+        serializer = FriendshipWriteSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            # вернём новый объект в «read» формате
+            read_ser = FriendshipReadSerializer(
+                serializer.instance, context={"request": request}
+            )
+            return Response(read_ser.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request):
@@ -106,29 +110,24 @@ class FriendshipAPIList(viewsets.ViewSet):
                       or error details if the record is not found or access is denied.
         """
 
-        other_user_id = request.data.get("other_user_id")
-        if not other_user_id:
+        other_id = request.data.get("other_user_id")
+        if not other_id:
             return Response(
-                {"detail": "Не указан идентификатор другого пользователя."},
+                {"detail": "Не указан other_user_id"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        user = request.user
 
         try:
-            friendship = Friendship.objects.get(
-                from_user_id=other_user_id, to_user=user, status="sended"
+            fs = Friendship.objects.get(
+                from_user_id=other_id, to_user=request.user, status="sended"
             )
         except Friendship.DoesNotExist:
-            return Response(
-                {"detail": "Запись не найдена или нет доступа для принятия заявки."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"detail": "Не найдено"}, status=status.HTTP_404_NOT_FOUND)
 
-        friendship.status = "accepted"
-        friendship.save()
-
-        serializer = FriendshipSerializer(friendship)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        fs.status = "accepted"
+        fs.save()
+        read_ser = FriendshipReadSerializer(fs, context={"request": request})
+        return Response(read_ser.data)
 
     def destroy(self, request):
         """
@@ -148,24 +147,20 @@ class FriendshipAPIList(viewsets.ViewSet):
                       or error details if the record is not found or access is denied.
         """
 
-        other_user_id = request.data.get("other_user_id")
-        if not other_user_id:
+        other_id = request.data.get("other_user_id")
+        if not other_id:
             return Response(
-                {"detail": "Не указан идентификатор другого пользователя."},
+                {"detail": "Не указан other_user_id"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        user = request.user
 
         try:
-            friendship = Friendship.objects.get(
-                Q(from_user=user, to_user_id=other_user_id)
-                | Q(from_user_id=other_user_id, to_user=user)
+            fs = Friendship.objects.get(
+                Q(from_user=request.user, to_user_id=other_id)
+                | Q(from_user_id=other_id, to_user=request.user)
             )
         except Friendship.DoesNotExist:
-            return Response(
-                {"detail": "Запись не найдена."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+            return Response({"detail": "Не найдено"}, status=status.HTTP_404_NOT_FOUND)
 
-        friendship.delete()
+        fs.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
