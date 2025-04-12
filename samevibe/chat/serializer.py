@@ -16,6 +16,7 @@ class ChatSerializer(serializers.ModelSerializer):
     other_user = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     last_time = serializers.SerializerMethodField()
+    last_message_sender_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Chats
@@ -28,6 +29,7 @@ class ChatSerializer(serializers.ModelSerializer):
             "other_user",
             "last_message",
             "last_time",
+            "last_message_sender_id",
         )
 
     def get_other_user(self, instance):
@@ -42,6 +44,10 @@ class ChatSerializer(serializers.ModelSerializer):
     def get_last_time(self, instance):
         msg = instance.contents_set.order_by("-created_at").first()
         return msg.created_at.isoformat() if msg else None
+
+    def get_last_message_sender_id(self, instance):
+        msg = instance.contents_set.order_by("-created_at").first()
+        return msg.sender.id if msg else None
 
 
 class ContentSerializer(serializers.ModelSerializer):

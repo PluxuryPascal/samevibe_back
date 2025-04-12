@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 
+from chat.models import Chats
 from .models import Friendship
 from .serializer import (
     FriendshipReadSerializer,
@@ -163,4 +164,14 @@ class FriendshipAPIList(viewsets.ViewSet):
             return Response({"detail": "Не найдено"}, status=status.HTTP_404_NOT_FOUND)
 
         fs.delete()
+
+        try:
+            chat = Chats.objects.get(
+                Q(user1=request.user, user2_id=other_id)
+                | Q(user1_id=other_id, user2=request.user)
+            )
+            chat.delete()
+        except Chats.DoesNotExist:
+            pass
+
         return Response(status=status.HTTP_204_NO_CONTENT)
