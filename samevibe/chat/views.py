@@ -134,5 +134,5 @@ class ChatAttachmentSignatureAPIView(APIView):
             params, cloudinary.config().api_secret
         )
         params["signature"] = signature
-        params["cloud_name"] = cloudinary.config().cloud_name
+        params["cloud_name"] = "ddj3v3pi3"
         return Response(params)

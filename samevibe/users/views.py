@@ -1,3 +1,4 @@
+import os
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -7,6 +8,10 @@ from rest_framework.response import Response
 import cloudinary
 import cloudinary.utils
 import time
+import logging
+
+
+from django.conf import settings
 
 from .models import Profile
 from .serializer import (
@@ -92,27 +97,52 @@ class UserIdApiView(generics.RetrieveAPIView):
         return self.request.user
 
 
+logger = logging.getLogger(__name__)
+
+
 class AvatarSignatureAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        folder = f"avatars/{request.user.id}"
-        timestamp = int(time.time())
-        params = {
-            "timestamp": timestamp,
-            "folder": folder,
-            "width": 200,
-            "height": 200,
-            "crop": "fill",
-            "gravity": "face",
-            "quality": "auto",
-            "fetch_format": "auto",
-            "radius": "max",
-        }
+    def get(self, request):
+        try:
+            # Проверяем конфигурацию Cloudinary
+            if not all(
+                [
+                    os.environ.get("CLOUDINARY_API_NAME"),
+                    os.environ.get("CLOUDINARY_API_KEY"),
+                    os.environ.get("CLOUDINARY_API_SECRET"),
+                ]
+            ):
+                raise ValueError("Cloudinary credentials not configured")
 
-        signature = cloudinary.utils.api_sign_request(
-            params, cloudinary.config().api_secret
-        )
-        params["signature"] = signature
-        params["cloud_name"] = cloudinary.config().cloud_name
-        return Response(params)
+            # Генерируем обязательные параметры
+            user_id = request.user.id
+            timestamp = int(time.time())
+            folder = f"avatars/{user_id}"
+
+            # Базовые параметры для подписи
+            params = {
+                "timestamp": timestamp,
+                "folder": folder,
+                "upload_preset": "your_upload_preset",  # Укажите ваш preset
+            }
+
+            # Генерируем подпись
+            signature = cloudinary.utils.api_sign_request(
+                params, settings.CLOUDINARY_API_SECRET
+            )
+
+            return Response(
+                {
+                    "signature": signature,
+                    "timestamp": timestamp,
+                    "folder": folder,
+                    "cloud_name": os.environ.get("CLOUDINARY_API_NAME"),
+                    "api_key": os.environ.get("CLOUDINARY_API_KEY"),
+                    "transformation": "c_fill,g_face,w_200,h_200,q_auto,f_auto,r_20",
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Signature generation failed: {str(e)}")
+            return Response({"error": "Internal server error"}, status=500)
