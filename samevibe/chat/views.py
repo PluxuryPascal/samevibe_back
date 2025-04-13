@@ -5,6 +5,10 @@ from rest_framework import generics, mixins, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q
+from rest_framework.views import APIView
+import time
+import cloudinary
+import cloudinary.utils
 
 from .models import Chats, Contents
 from .serializer import ChatSerializer, ContentSerializer
@@ -111,3 +115,24 @@ class ContentRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
         return super().update(request, *args, **kwargs)
+
+
+class ChatAttachmentSignatureAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        chat_id = request.query_params.get("chat_id")
+        if not chat_id:
+            return Response({"detail": "chat_id обязателен"}, status=400)
+        folder = f"chat/{chat_id}/"
+        timestamp = int(time.time())
+        params = {
+            "timestamp": timestamp,
+            "folder": folder,
+        }
+        signature = cloudinary.utils.api_sign_request(
+            params, cloudinary.config().api_secret
+        )
+        params["signature"] = signature
+        params["cloud_name"] = cloudinary.config().cloud_name
+        return Response(params)

@@ -6,6 +6,7 @@ from .views import (
     HobbyUserSearchAPIView,
     MusicUserSearchAPIView,
     UserIdApiView,
+    AvatarSignatureAPIView,
 )
 
 urlpatterns = [
@@ -17,4 +18,7 @@ urlpatterns = [
     ),
     path("hobby-search/", HobbyUserSearchAPIView.as_view(), name="hobby-search"),
     path("music-search/", MusicUserSearchAPIView.as_view(), name="music-search"),
+    path(
+        "avatar-signature/", AvatarSignatureAPIView.as_view(), name="avatar-signature"
+    ),
 ]

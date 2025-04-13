@@ -2,6 +2,11 @@ from django.shortcuts import render
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import generics
+from rest_framework.views import APIView
+from rest_framework.response import Response
+import cloudinary
+import cloudinary.utils
+import time
 
 from .models import Profile
 from .serializer import (
@@ -85,3 +90,29 @@ class UserIdApiView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class AvatarSignatureAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        folder = f"avatars/{request.user.id}"
+        timestamp = int(time.time())
+        params = {
+            "timestamp": timestamp,
+            "folder": folder,
+            "width": 200,
+            "height": 200,
+            "crop": "fill",
+            "gravity": "face",
+            "quality": "auto",
+            "fetch_format": "auto",
+            "radius": "max",
+        }
+
+        signature = cloudinary.utils.api_sign_request(
+            params, cloudinary.config().api_secret
+        )
+        params["signature"] = signature
+        params["cloud_name"] = cloudinary.config().cloud_name
+        return Response(params)
