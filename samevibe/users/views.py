@@ -101,48 +101,49 @@ logger = logging.getLogger(__name__)
 
 
 class AvatarSignatureAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def post(self, request):
         try:
-            # Проверяем конфигурацию Cloudinary
-            if not all(
-                [
-                    os.environ.get("CLOUDINARY_API_NAME"),
-                    os.environ.get("CLOUDINARY_API_KEY"),
-                    os.environ.get("CLOUDINARY_API_SECRET"),
-                ]
+            # 1) Проверяем, что в настройках есть все ключи Cloudinary
+            for var in (
+                "CLOUDINARY_NAME",
+                "CLOUDINARY_API_KEY",
+                "CLOUDINARY_API_SECRET",
             ):
-                raise ValueError("Cloudinary credentials not configured")
+                if not getattr(settings, var, None):
+                    raise ValueError(f"{var} not configured")
 
-            # Генерируем обязательные параметры
+            # 2) Извлекаем реальные параметры из body.paramsToSign, если нужно
+            raw = request.data.get("paramsToSign") or request.data
+
+            # 3) Гарантируем безопасный folder (не подписываем его)
             user_id = request.user.id
-            timestamp = int(time.time())
             folder = f"avatars/{user_id}"
 
-            # Базовые параметры для подписи
-            params = {
-                "timestamp": timestamp,
-                "folder": folder,
-                "upload_preset": "your_upload_preset",  # Укажите ваш preset
+            # 4) Формируем словарь для подписи, исключая ненужные ключи
+            params_to_sign = {
+                k: v
+                for k, v in raw.items()
+                if v is not None
+                and k
+                not in ("file", "api_key", "resource_type", "cloud_name", "folder")
             }
 
-            # Генерируем подпись
+            # 5) Подписываем именно эти параметры
             signature = cloudinary.utils.api_sign_request(
-                params, settings.CLOUDINARY_API_SECRET
+                params_to_sign, settings.CLOUDINARY_API_SECRET
             )
 
+            # 6) Отдаём подпись, timestamp и безопасный folder
             return Response(
                 {
                     "signature": signature,
-                    "timestamp": timestamp,
+                    "timestamp": params_to_sign.get("timestamp", int(time.time())),
                     "folder": folder,
-                    "cloud_name": os.environ.get("CLOUDINARY_API_NAME"),
-                    "api_key": os.environ.get("CLOUDINARY_API_KEY"),
-                    "transformation": "c_fill,g_face,w_200,h_200,q_auto,f_auto,r_20",
                 }
             )
 
         except Exception as e:
-            logger.error(f"Signature generation failed: {str(e)}")
+            logger.error(f"Signature generation failed: {e}")
             return Response({"error": "Internal server error"}, status=500)
