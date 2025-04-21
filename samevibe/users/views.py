@@ -101,7 +101,7 @@ logger = logging.getLogger(__name__)
 
 
 class AvatarSignatureAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
