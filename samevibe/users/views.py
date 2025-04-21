@@ -103,7 +103,7 @@ logger = logging.getLogger(__name__)
 class AvatarSignatureAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
+    def get(self, request):
         try:
             # 1) Проверяем, что в настройках есть все ключи Cloudinary
             for var in (
