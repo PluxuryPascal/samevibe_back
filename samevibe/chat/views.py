@@ -10,6 +10,8 @@ import time
 import cloudinary
 import cloudinary.utils
 
+from django.conf import settings
+
 from .models import Chats, Contents
 from .serializer import ChatSerializer, ContentSerializer
 
@@ -120,19 +122,46 @@ class ContentRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
 class ChatAttachmentSignatureAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        chat_id = request.query_params.get("chat_id")
-        if not chat_id:
-            return Response({"detail": "chat_id обязателен"}, status=400)
-        folder = f"chat/{chat_id}/"
-        timestamp = int(time.time())
-        params = {
-            "timestamp": timestamp,
-            "folder": folder,
-        }
-        signature = cloudinary.utils.api_sign_request(
-            params, cloudinary.config().api_secret
-        )
-        params["signature"] = signature
-        params["cloud_name"] = "ddj3v3pi3"
-        return Response(params)
+    def get(self, request):
+        try:
+            # 1) Проверяем, что в настройках есть все ключи Cloudinary
+            for var in (
+                "CLOUDINARY_NAME",
+                "CLOUDINARY_API_KEY",
+                "CLOUDINARY_API_SECRET",
+            ):
+                if not getattr(settings, var, None):
+                    raise ValueError(f"{var} not configured")
+
+            # 2) Извлекаем реальные параметры из body.paramsToSign, если нужно
+            raw = request.data.get("paramsToSign") or request.data
+
+            # 3) Гарантируем безопасный folder (не подписываем его)
+            chat_id = request.query_params.get("chat_id")
+            folder = f"chat/{chat_id}/"
+
+            # 4) Формируем словарь для подписи, исключая ненужные ключи
+            params_to_sign = {
+                k: v
+                for k, v in raw.items()
+                if v is not None
+                and k
+                not in ("file", "api_key", "resource_type", "cloud_name", "folder")
+            }
+
+            # 5) Подписываем именно эти параметры
+            signature = cloudinary.utils.api_sign_request(
+                params_to_sign, settings.CLOUDINARY_API_SECRET
+            )
+
+            # 6) Отдаём подпись, timestamp и безопасный folder
+            return Response(
+                {
+                    "signature": signature,
+                    "timestamp": params_to_sign.get("timestamp", int(time.time())),
+                    "folder": folder,
+                }
+            )
+
+        except Exception as e:
+            return Response({"error": "Internal server error"}, status=500)
