@@ -32,7 +32,7 @@ class FriendshipReadSerializer(serializers.ModelSerializer):
         return {
             "first_name": other_user.first_name,
             "last_name": other_user.last_name,
-            "avatar": profile.photo.url if profile.photo else None,
+            "avatar": profile.photo if profile.photo else None,
         }
 
     def get_other_id(self, instance):

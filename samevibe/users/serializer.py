@@ -78,6 +78,7 @@ class InterestMatchedUserSerializer(serializers.ModelSerializer):
     percentage = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     gender = serializers.SerializerMethodField()
+    avatar = serializers.CharField(source="profile.photo", allow_null=True)
 
     class Meta:
         model = User
@@ -90,6 +91,7 @@ class InterestMatchedUserSerializer(serializers.ModelSerializer):
             "gender",
             "percentage",
             "status",
+            "avatar",
         )
 
     def get_percentage(self, obj):
@@ -145,6 +147,7 @@ class HobbyMatchedUserSerializer(serializers.ModelSerializer):
     percentage = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     gender = serializers.SerializerMethodField()
+    avatar = serializers.CharField(source="profile.photo", allow_null=True)
 
     class Meta:
         model = User
@@ -157,6 +160,7 @@ class HobbyMatchedUserSerializer(serializers.ModelSerializer):
             "gender",
             "percentage",
             "status",
+            "avatar",
         )
 
     def get_percentage(self, obj):
@@ -210,6 +214,7 @@ class MusicMatchedUserSerializer(serializers.ModelSerializer):
     percentage = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     gender = serializers.SerializerMethodField()
+    avatar = serializers.CharField(source="profile.photo", allow_null=True)
 
     class Meta:
         model = User
@@ -222,6 +227,7 @@ class MusicMatchedUserSerializer(serializers.ModelSerializer):
             "gender",
             "percentage",
             "status",
+            "avatar",
         )
 
     def get_percentage(self, obj):
