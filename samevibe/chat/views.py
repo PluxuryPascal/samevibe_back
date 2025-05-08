@@ -9,6 +9,9 @@ from rest_framework.views import APIView
 import time
 import cloudinary
 import cloudinary.utils
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 
 from django.conf import settings
 
@@ -58,6 +61,7 @@ class ChatAPIView(
         """
         return self.list(request, *args, **kwargs)
 
+    @method_decorator(cache_page(10 * 60), name="list")
     def list(self, request, *args, **kwargs):
         """
         List all chats for the authenticated user.
@@ -125,6 +129,8 @@ class ChatAPIView(
                 {"type": "chat_update", "data": read_ser.data},
             )
 
+        cache.delete_pattern(f"*{request.user.id}*/api/v1/chat/chats*")
+        cache.delete_pattern(f"*{to_user_id}*/api/v1/chat/chats*")
         return Response(read_ser.data, status=status.HTTP_201_CREATED)
 
 

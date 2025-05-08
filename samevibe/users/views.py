@@ -5,6 +5,10 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.core.cache import cache
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+
 import cloudinary
 import cloudinary.utils
 import time
@@ -52,6 +56,19 @@ class ProfileAPIView(generics.RetrieveUpdateAPIView):
 
         return Profile.objects.get(user=self.request.user)
 
+    def retrieve(self, request, *args, **kwargs):
+        key = f"profile_{request.user.id}"
+        data = cache.get(key)
+        if data:
+            return Response(data)
+        resp = super().retrieve(request, *args, **kwargs)
+        cache.set(key, resp.data, 10 * 60)
+        return resp
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        cache.delete(f"profile_{instance.user.id}")
+
 
 class UserRegisterAPIView(generics.CreateAPIView):
     """
@@ -70,6 +87,7 @@ class UserRegisterAPIView(generics.CreateAPIView):
     ]
 
 
+@method_decorator(cache_page(5 * 60), name="dispatch")
 class InterestUserSearchAPIView(generics.ListAPIView):
     """
     List users matched by interest.
@@ -94,6 +112,7 @@ class InterestUserSearchAPIView(generics.ListAPIView):
         return User.objects.exclude(id=current_user.id)
 
 
+@method_decorator(cache_page(5 * 60), name="dispatch")
 class HobbyUserSearchAPIView(generics.ListAPIView):
     """
     List users matched by hobbies.
@@ -118,6 +137,7 @@ class HobbyUserSearchAPIView(generics.ListAPIView):
         return User.objects.exclude(id=current_user.id)
 
 
+@method_decorator(cache_page(5 * 60), name="dispatch")
 class MusicUserSearchAPIView(generics.ListAPIView):
     """
     List users matched by music preferences.

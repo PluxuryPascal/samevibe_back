@@ -3,6 +3,9 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 
 from chat.models import Chats
 from .models import Friendship
@@ -27,6 +30,7 @@ class FriendshipAPIList(viewsets.ViewSet):
 
     permission_classes = [IsAuthenticated]
 
+    @method_decorator(cache_page(10 * 60), name="list")
     def list(self, request):
         """
         Retrieve a list of friendship records for the authenticated user.
@@ -88,7 +92,13 @@ class FriendshipAPIList(viewsets.ViewSet):
             read_ser = FriendshipReadSerializer(
                 serializer.instance, context={"request": request}
             )
+
+            user1 = request.user.id
+            user2 = request.data.get("to_user")
+            cache.delete_pattern(f"*{user1}*/api/friendship*")
+            cache.delete_pattern(f"*{user2}*/api/friendship*")
             return Response(read_ser.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request):
@@ -128,6 +138,9 @@ class FriendshipAPIList(viewsets.ViewSet):
         fs.status = "accepted"
         fs.save()
         read_ser = FriendshipReadSerializer(fs, context={"request": request})
+
+        cache.delete_pattern(f"*{request.user.id}*/api/friendship*")
+        cache.delete_pattern(f"*{other_id}*/api/friendship*")
         return Response(read_ser.data)
 
     def destroy(self, request):
@@ -174,4 +187,6 @@ class FriendshipAPIList(viewsets.ViewSet):
         except Chats.DoesNotExist:
             pass
 
+        cache.delete_pattern(f"*{request.user.id}*/api/v1/friends/friendship*")
+        cache.delete_pattern(f"*{other_id}*/api/v1/friends/friendship*")
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -2,6 +2,9 @@ from django.shortcuts import render
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import generics, views, status, mixins
 from rest_framework.response import Response
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.core.cache import cache
 
 from .models import Interest, Hobby, MusicGenre, UserInterest, UserHobby, UserMusic
 from .serializer import (
@@ -14,6 +17,7 @@ from .serializer import (
 )
 
 
+@method_decorator(cache_page(60 * 60), name="dispatch")
 class InterestsAPIList(generics.ListAPIView):
     """
     Retrieve a list of all available interests.
@@ -26,6 +30,7 @@ class InterestsAPIList(generics.ListAPIView):
     serializer_class = InterestSerializer
 
 
+@method_decorator(cache_page(60 * 60), name="dispatch")
 class HobbyAPIList(generics.ListAPIView):
     """
     Retrieve a list of all available hobbies.
@@ -38,6 +43,7 @@ class HobbyAPIList(generics.ListAPIView):
     serializer_class = HobbySerializer
 
 
+@method_decorator(cache_page(60 * 60), name="dispatch")
 class MusicGenreAPIList(generics.ListAPIView):
     """
     Retrieve a list of all available music genres.
@@ -50,6 +56,7 @@ class MusicGenreAPIList(generics.ListAPIView):
     serializer_class = MusicGenreSerializer
 
 
+@method_decorator(cache_page(60 * 60), name="dispatch")
 class UserInterestAPIView(
     mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView
 ):
@@ -119,9 +126,14 @@ class UserInterestAPIView(
         ]
         UserInterest.objects.bulk_create(new_records)
 
+        uid = request.user.id
+        cache.delete(f"profile_{uid}")
+        cache.delete_pattern(f"*{uid}*/api/user-interests*")
+        cache.delete_pattern(f"*{uid}*/api/interest-search*")
         return Response({"detail": "Интересы обновлены."}, status=status.HTTP_200_OK)
 
 
+@method_decorator(cache_page(60 * 60), name="dispatch")
 class UserHobbyAPIView(
     mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView
 ):
@@ -187,9 +199,15 @@ class UserHobbyAPIView(
         ]
         UserHobby.objects.bulk_create(new_records)
 
+        uid = request.user.id
+        cache.delete(f"profile_{uid}")
+        cache.delete_pattern(f"*{uid}*/api/user-interests*")
+        cache.delete_pattern(f"*{uid}*/api/interest-search*")
+
         return Response({"detail": "Хобби обновлены."}, status=status.HTTP_200_OK)
 
 
+@method_decorator(cache_page(60 * 60), name="dispatch")
 class UserMusicAPIView(
     mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView
 ):
@@ -255,5 +273,10 @@ class UserMusicAPIView(
             UserMusic(user=user, genre_id=genre_id) for genre_id in music_ids
         ]
         UserMusic.objects.bulk_create(new_records)
+
+        uid = request.user.id
+        cache.delete(f"profile_{uid}")
+        cache.delete_pattern(f"*{uid}*/api/user-interests*")
+        cache.delete_pattern(f"*{uid}*/api/interest-search*")
 
         return Response({"detail": "Жанры обновлены."}, status=status.HTTP_200_OK)
