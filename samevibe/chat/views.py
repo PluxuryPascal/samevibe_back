@@ -22,26 +22,75 @@ class ChatAPIView(
     generics.GenericAPIView,
 ):
     """
-    GET  /api/chats/         — список чатов пользователя
-    POST /api/chats/         — создать чат (или вернуть существующий)
+    API ViewSet for managing one-to-one chats.
+
+    This view provides endpoints to:
+      - List all chats involving the authenticated user.
+      - Create a new chat between two users (or return an existing one).
+
+    All operations require authentication.
     """
 
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Build the queryset for listing chats.
+
+        Returns:
+            QuerySet[Chats]: All Chats where the authenticated user is either user1 or user2.
+        """
         user = self.request.user
         return Chats.objects.filter(Q(user1=user) | Q(user2=user))
 
     def get(self, request, *args, **kwargs):
+        """
+        Retrieve the list of chats.
+
+        This is an alias for `.list()` to satisfy ViewSet conventions.
+
+        Args:
+            request (Request): The incoming HTTP GET request.
+
+        Returns:
+            Response: Serialized list of the user's chats.
+        """
         return self.list(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
+        """
+        List all chats for the authenticated user.
+
+        This endpoint returns all chat threads involving the current user,
+        serialized via `ChatSerializer`.
+
+        Args:
+            request (Request): The incoming HTTP GET request.
+
+        Returns:
+            Response: 200 OK with a JSON array of chat objects.
+        """
         qs = self.get_queryset()
         serializer = self.get_serializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
+        """
+        Create a new chat or return an existing one.
+
+        If a chat between the authenticated user and `to_user` already exists,
+        it will be returned. Otherwise, a new `Chats` instance is created.
+
+        Request Body:
+            to_user (int): ID of the user with whom to start the chat.
+
+        Args:
+            request (Request): The incoming HTTP POST request.
+
+        Returns:
+            Response: 201 CREATED with the new chat data, or 200 OK if it already existed.
+        """
         to_user_id = request.data.get("to_user")
         if not to_user_id:
             return Response(
@@ -81,17 +130,38 @@ class ChatAPIView(
 
 class ChatContentAPIView(generics.ListAPIView):
     """
-    GET /api/chats/{chat_id}/contents/ — все сообщения в чате
+    Read-only endpoint to retrieve all messages in a specific chat.
+
+    Provides:
+      - GET /api/chats/{chat_id}/contents/ to list every message for the given chat,
+        ordered by creation time.
+
+    Requires authentication.
     """
 
     serializer_class = ContentSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Build queryset of Contents for a given chat.
+
+        Returns:
+            QuerySet[Contents]: All messages in the chat identified by `chat_id`.
+        """
         chat_id = self.kwargs["chat_id"]
         return Contents.objects.filter(chat_id=chat_id).order_by("created_at")
 
     def list(self, request, *args, **kwargs):
+        """
+        Retrieve and serialize the chat's messages.
+
+        Args:
+            request (Request): The incoming HTTP GET request.
+
+        Returns:
+            Response: 200 OK with a JSON array of message objects.
+        """
         qs = self.get_queryset()
         ser = self.get_serializer(qs, many=True, context={"request": request})
         return Response(ser.data)
@@ -99,17 +169,38 @@ class ChatContentAPIView(generics.ListAPIView):
 
 class ContentRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
     """
-    GET  /api/contents/{pk}/ — получить одно сообщение
-    PATCH/PUT /api/contents/{pk}/ — отредактировать (только автору)
+    Endpoint for retrieving or updating a single chat message.
+
+    Supports:
+      - GET /api/contents/{pk}/ to fetch the message.
+      - PATCH/PUT /api/contents/{pk}/ to edit it (author only).
+
+    Requires authentication.
     """
 
     serializer_class = ContentSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Provide the base queryset for retrieve/update.
+
+        Returns:
+            QuerySet[Contents]: All messages, filtered later by `pk`.
+        """
         return Contents.objects.all()
 
     def update(self, request, *args, **kwargs):
+        """
+        Edit an existing message if the requester is its author.
+
+        Args:
+            request (Request): The incoming HTTP PATCH/PUT request.
+            kwargs (dict): URL kwargs including 'pk'.
+
+        Returns:
+            Response: 200 OK with updated data, or 403 FORBIDDEN / 404 NOT FOUND.
+        """
         instance = self.get_object()
         if instance.sender != request.user:
             return Response(
@@ -120,9 +211,30 @@ class ContentRetrieveUpdateAPIView(generics.RetrieveUpdateAPIView):
 
 
 class ChatAttachmentSignatureAPIView(APIView):
+    """
+    Generate a Cloudinary upload signature for chat attachments.
+
+    Provides:
+      - GET /api/chats/attachment-signature/?chat_id={chat_id}
+
+    It verifies required Cloudinary settings, filters and signs the
+    upload parameters, and returns a timestamped signature and folder.
+    Authentication required.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """
+        Create and return a Cloudinary signature and safe folder path.
+
+        Query Params:
+            chat_id (str): Identifier of the chat for folder naming.
+
+        Returns:
+            Response: 200 OK with JSON {signature, timestamp, folder}, or
+                      500 INTERNAL SERVER ERROR on failure.
+        """
         try:
             # 1) Проверяем, что в настройках есть все ключи Cloudinary
             for var in (
@@ -163,5 +275,5 @@ class ChatAttachmentSignatureAPIView(APIView):
                 }
             )
 
-        except Exception as e:
+        except Exception:
             return Response({"error": "Internal server error"}, status=500)

@@ -54,6 +54,14 @@ class ProfileAPIView(generics.RetrieveUpdateAPIView):
 
 
 class UserRegisterAPIView(generics.CreateAPIView):
+    """
+    Endpoint for user registration.
+
+    Provides:
+      - POST /api/users/register/ to create a new user profile.
+
+    Anyone (authenticated or not) can register.
+    """
 
     queryset = Profile.objects.all()
     serializer_class = ProfileRegisterSerializer
@@ -63,37 +71,97 @@ class UserRegisterAPIView(generics.CreateAPIView):
 
 
 class InterestUserSearchAPIView(generics.ListAPIView):
+    """
+    List users matched by interest.
+
+    This endpoint returns a list of all users except the authenticated one,
+    to enable matching on interests.
+
+    Requires authentication.
+    """
+
     serializer_class = InterestMatchedUserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Build queryset excluding the current user.
+
+        Returns:
+            QuerySet[User]: All users except request.user.
+        """
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
 
 
 class HobbyUserSearchAPIView(generics.ListAPIView):
+    """
+    List users matched by hobbies.
+
+    This endpoint returns a list of all users except the authenticated one,
+    to enable matching on hobbies.
+
+    Requires authentication.
+    """
+
     serializer_class = HobbyMatchedUserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Build queryset excluding the current user.
+
+        Returns:
+            QuerySet[User]: All users except request.user.
+        """
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
 
 
 class MusicUserSearchAPIView(generics.ListAPIView):
+    """
+    List users matched by music preferences.
+
+    This endpoint returns a list of all users except the authenticated one,
+    to enable matching on music tastes.
+
+    Requires authentication.
+    """
+
     serializer_class = MusicMatchedUserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Build queryset excluding the current user.
+
+        Returns:
+            QuerySet[User]: All users except request.user.
+        """
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
 
 
 class UserIdApiView(generics.RetrieveAPIView):
+    """
+    Retrieve the authenticated user's ID.
+
+    Provides:
+      - GET /api/users/me/ to fetch the current user's ID.
+
+    Requires authentication.
+    """
+
     permission_classes = [IsAuthenticated]
     serializer_class = UserIdSerializer
 
     def get_object(self):
+        """
+        Return the user instance for the requester.
+
+        Returns:
+            User: The authenticated user.
+        """
         return self.request.user
 
 
@@ -101,9 +169,27 @@ logger = logging.getLogger(__name__)
 
 
 class AvatarSignatureAPIView(APIView):
+    """
+    Generate a Cloudinary upload signature for user avatars.
+
+    Provides:
+      - GET /api/avatar-signature/
+
+    It verifies Cloudinary settings, prepares the upload
+    folder (`avatars/{user_id}`), signs parameters, and returns them.
+    Requires authentication.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """
+        Create and return a Cloudinary signature for avatar upload.
+
+        Returns:
+            Response: 200 OK with JSON {signature, timestamp, folder}, or
+                      500 INTERNAL SERVER ERROR on failure.
+        """
         try:
             # 1) Проверяем, что в настройках есть все ключи Cloudinary
             for var in (
@@ -144,6 +230,6 @@ class AvatarSignatureAPIView(APIView):
                 }
             )
 
-        except Exception as e:
+        except Exception:
             logger.error(f"Signature generation failed: {e}")
             return Response({"error": "Internal server error"}, status=500)
