@@ -29,8 +29,22 @@ class FriendshipAPIList(viewsets.ViewSet):
     """
 
     permission_classes = [IsAuthenticated]
+    CACHE_TIMEOUT = 10 * 60
+    CATEGORIES = ["all", "accepted", "sended", "received"]
 
-    @method_decorator(cache_page(10 * 60), name="list")
+    def _invalidate_search_caches(self, user1_id, user2_id):
+        # Сбрасываем и общий список друзей:
+        for uid in (user1_id, user2_id):
+            for cat in self.CATEGORIES:
+                cache.delete(f"friend_list_{uid}_{cat}")
+        # И сбрасываем кэши поиска:
+        cache.delete(f"user_interest_ids_{user1_id}")
+        cache.delete(f"user_interest_ids_{user2_id}")
+        cache.delete(f"user_hobby_ids_{user1_id}")
+        cache.delete(f"user_hobby_ids_{user2_id}")
+        cache.delete(f"user_music_ids_{user1_id}")
+        cache.delete(f"user_music_ids_{user2_id}")
+
     def list(self, request):
         """
         Retrieve a list of friendship records for the authenticated user.
@@ -48,19 +62,28 @@ class FriendshipAPIList(viewsets.ViewSet):
         """
 
         user = request.user
-        qs = Friendship.objects.filter(Q(from_user=user) | Q(to_user=user))
-        cat = request.query_params.get("cat")
-        if cat == "accepted":
-            qs = qs.filter(status="accepted")
-        elif cat == "sended":
-            qs = qs.filter(from_user=user, status="sended")
-        elif cat == "received":
-            qs = qs.filter(to_user=user, status="sended")
+        cat = request.query_params.get("cat") or "all"
+        if cat not in self.CATEGORIES:
+            cat = "all"
 
-        serializer = FriendshipReadSerializer(
-            qs, many=True, context={"request": request}
-        )
-        return Response(serializer.data)
+        cache_key = f"friend_list_{user.id}_{cat}"
+        data = cache.get(cache_key)
+        if data is None:
+            qs = Friendship.objects.filter(Q(from_user=user) | Q(to_user=user))
+            if cat == "accepted":
+                qs = qs.filter(status="accepted")
+            elif cat == "sended":
+                qs = qs.filter(from_user=user, status="sended")
+            elif cat == "received":
+                qs = qs.filter(to_user=user, status="sended")
+            # cat == "all" оставляем всё
+
+            data = FriendshipReadSerializer(
+                qs, many=True, context={"request": request}
+            ).data
+            cache.set(cache_key, data, self.CACHE_TIMEOUT)
+
+        return Response(data)
 
     def create(self, request):
         """
@@ -95,8 +118,7 @@ class FriendshipAPIList(viewsets.ViewSet):
 
             user1 = request.user.id
             user2 = request.data.get("to_user")
-            cache.delete_pattern(f"*{user1}*/api/friendship*")
-            cache.delete_pattern(f"*{user2}*/api/friendship*")
+            self._invalidate_search_caches(user1, user2)
             return Response(read_ser.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -139,8 +161,7 @@ class FriendshipAPIList(viewsets.ViewSet):
         fs.save()
         read_ser = FriendshipReadSerializer(fs, context={"request": request})
 
-        cache.delete_pattern(f"*{request.user.id}*/api/friendship*")
-        cache.delete_pattern(f"*{other_id}*/api/friendship*")
+        self._invalidate_search_caches(request.user.id, other_id)
         return Response(read_ser.data)
 
     def destroy(self, request):
@@ -187,6 +208,5 @@ class FriendshipAPIList(viewsets.ViewSet):
         except Chats.DoesNotExist:
             pass
 
-        cache.delete_pattern(f"*{request.user.id}*/api/v1/friends/friendship*")
-        cache.delete_pattern(f"*{other_id}*/api/v1/friends/friendship*")
+        self._invalidate_search_caches(request.user.id, other_id)
         return Response(status=status.HTTP_204_NO_CONTENT)

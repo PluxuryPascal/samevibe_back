@@ -87,7 +87,6 @@ class UserRegisterAPIView(generics.CreateAPIView):
     ]
 
 
-@method_decorator(cache_page(5 * 60), name="dispatch")
 class InterestUserSearchAPIView(generics.ListAPIView):
     """
     List users matched by interest.
@@ -100,6 +99,7 @@ class InterestUserSearchAPIView(generics.ListAPIView):
 
     serializer_class = InterestMatchedUserSerializer
     permission_classes = [IsAuthenticated]
+    CACHE_TIMEOUT = 5 * 60
 
     def get_queryset(self):
         """
@@ -111,8 +111,22 @@ class InterestUserSearchAPIView(generics.ListAPIView):
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
 
+    def list(self, request, *args, **kwargs):
+        uid = request.user.id
+        cache_key = f"user_interest_ids_{uid}"
+        user_ids = cache.get(cache_key)
 
-@method_decorator(cache_page(5 * 60), name="dispatch")
+        if user_ids is None:
+            # Кэшируем только список id, без статусов
+            user_ids = list(User.objects.exclude(id=uid).values_list("id", flat=True))
+            cache.set(cache_key, user_ids, self.CACHE_TIMEOUT)
+
+        # Загружаем свежие объекты и отдаем в сериализатор статус
+        qs = User.objects.filter(id__in=user_ids)
+        serializer = self.get_serializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
+
+
 class HobbyUserSearchAPIView(generics.ListAPIView):
     """
     List users matched by hobbies.
@@ -125,6 +139,7 @@ class HobbyUserSearchAPIView(generics.ListAPIView):
 
     serializer_class = HobbyMatchedUserSerializer
     permission_classes = [IsAuthenticated]
+    CACHE_TIMEOUT = 5 * 60
 
     def get_queryset(self):
         """
@@ -136,8 +151,22 @@ class HobbyUserSearchAPIView(generics.ListAPIView):
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
 
+    def list(self, request, *args, **kwargs):
+        uid = request.user.id
+        cache_key = f"user_hobby_ids_{uid}"
+        user_ids = cache.get(cache_key)
 
-@method_decorator(cache_page(5 * 60), name="dispatch")
+        if user_ids is None:
+            # Кэшируем только список id, без статусов
+            user_ids = list(User.objects.exclude(id=uid).values_list("id", flat=True))
+            cache.set(cache_key, user_ids, self.CACHE_TIMEOUT)
+
+        # Загружаем свежие объекты и отдаем в сериализатор статус
+        qs = User.objects.filter(id__in=user_ids)
+        serializer = self.get_serializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
+
+
 class MusicUserSearchAPIView(generics.ListAPIView):
     """
     List users matched by music preferences.
@@ -150,6 +179,7 @@ class MusicUserSearchAPIView(generics.ListAPIView):
 
     serializer_class = MusicMatchedUserSerializer
     permission_classes = [IsAuthenticated]
+    CACHE_TIMEOUT = 5 * 60
 
     def get_queryset(self):
         """
@@ -160,6 +190,21 @@ class MusicUserSearchAPIView(generics.ListAPIView):
         """
         current_user = self.request.user
         return User.objects.exclude(id=current_user.id)
+
+    def list(self, request, *args, **kwargs):
+        uid = request.user.id
+        cache_key = f"user_music_ids_{uid}"
+        user_ids = cache.get(cache_key)
+
+        if user_ids is None:
+            # Кэшируем только список id, без статусов
+            user_ids = list(User.objects.exclude(id=uid).values_list("id", flat=True))
+            cache.set(cache_key, user_ids, self.CACHE_TIMEOUT)
+
+        # Загружаем свежие объекты и отдаем в сериализатор статус
+        qs = User.objects.filter(id__in=user_ids)
+        serializer = self.get_serializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
 
 
 class UserIdApiView(generics.RetrieveAPIView):

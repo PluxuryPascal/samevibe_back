@@ -56,7 +56,6 @@ class MusicGenreAPIList(generics.ListAPIView):
     serializer_class = MusicGenreSerializer
 
 
-@method_decorator(cache_page(60 * 60), name="dispatch")
 class UserInterestAPIView(
     mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView
 ):
@@ -81,6 +80,7 @@ class UserInterestAPIView(
     permission_classes = [
         IsAuthenticated,
     ]
+    CACHE_TIMEOUT = 60 * 60
 
     def get_queryset(self):
         """
@@ -89,6 +89,16 @@ class UserInterestAPIView(
         """
 
         return UserInterest.objects.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        uid = request.user.id
+        cache_key = f"user_interests_{uid}"
+        data = cache.get(cache_key)
+        if data is None:
+            qs = UserInterest.objects.filter(user=request.user)
+            data = UserInterestSerializer(qs, many=True).data
+            cache.set(cache_key, data, self.CACHE_TIMEOUT)
+        return Response(data)
 
     def get(self, request, *args, **kwargs):
         """
@@ -128,12 +138,11 @@ class UserInterestAPIView(
 
         uid = request.user.id
         cache.delete(f"profile_{uid}")
-        cache.delete_pattern(f"*{uid}*/api/user-interests*")
-        cache.delete_pattern(f"*{uid}*/api/interest-search*")
+        cache.delete(f"user_interests_{uid}")
+        cache.delete(f"user_interest_search_{uid}")
         return Response({"detail": "Интересы обновлены."}, status=status.HTTP_200_OK)
 
 
-@method_decorator(cache_page(60 * 60), name="dispatch")
 class UserHobbyAPIView(
     mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView
 ):
@@ -158,6 +167,7 @@ class UserHobbyAPIView(
     permission_classes = [
         IsAuthenticated,
     ]
+    CACHE_TIMEOUT = 60 * 60
 
     def get_queryset(self):
         """
@@ -165,6 +175,16 @@ class UserHobbyAPIView(
             QuerySet: A queryset of UserHobby objects filtered by the authenticated user.
         """
         return UserHobby.objects.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        uid = request.user.id
+        cache_key = f"user_hobbies_{uid}"
+        data = cache.get(cache_key)
+        if data is None:
+            qs = UserHobby.objects.filter(user=request.user)
+            data = UserHobbiesSerializer(qs, many=True).data
+            cache.set(cache_key, data, self.CACHE_TIMEOUT)
+        return Response(data)
 
     def get(self, request, *args, **kwargs):
         """
@@ -201,13 +221,12 @@ class UserHobbyAPIView(
 
         uid = request.user.id
         cache.delete(f"profile_{uid}")
-        cache.delete_pattern(f"*{uid}*/api/user-interests*")
-        cache.delete_pattern(f"*{uid}*/api/interest-search*")
+        cache.delete(f"user_hobbies_{uid}")
+        cache.delete(f"user_hobby_search_{uid}")
 
         return Response({"detail": "Хобби обновлены."}, status=status.HTTP_200_OK)
 
 
-@method_decorator(cache_page(60 * 60), name="dispatch")
 class UserMusicAPIView(
     mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView
 ):
@@ -232,6 +251,7 @@ class UserMusicAPIView(
     permission_classes = [
         IsAuthenticated,
     ]
+    CACHE_TIMEOUT = 60 * 60
 
     def get_queryset(self):
         """
@@ -240,6 +260,16 @@ class UserMusicAPIView(
         """
 
         return UserMusic.objects.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        uid = request.user.id
+        cache_key = f"user_music_{uid}"
+        data = cache.get(cache_key)
+        if data is None:
+            qs = UserMusic.objects.filter(user=request.user)
+            data = UserMusicSerializer(qs, many=True).data
+            cache.set(cache_key, data, self.CACHE_TIMEOUT)
+        return Response(data)
 
     def get(self, request, *args, **kwargs):
         """
@@ -276,7 +306,7 @@ class UserMusicAPIView(
 
         uid = request.user.id
         cache.delete(f"profile_{uid}")
-        cache.delete_pattern(f"*{uid}*/api/user-interests*")
-        cache.delete_pattern(f"*{uid}*/api/interest-search*")
+        cache.delete(f"user_music_{uid}")
+        cache.delete(f"user_music_search_{uid}")
 
         return Response({"detail": "Жанры обновлены."}, status=status.HTTP_200_OK)

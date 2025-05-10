@@ -36,6 +36,7 @@ class ChatAPIView(
 
     serializer_class = ChatSerializer
     permission_classes = [IsAuthenticated]
+    CACHE_TIMEOUT = 10 * 60
 
     def get_queryset(self):
         """
@@ -61,7 +62,6 @@ class ChatAPIView(
         """
         return self.list(request, *args, **kwargs)
 
-    @method_decorator(cache_page(10 * 60), name="list")
     def list(self, request, *args, **kwargs):
         """
         List all chats for the authenticated user.
@@ -75,9 +75,14 @@ class ChatAPIView(
         Returns:
             Response: 200 OK with a JSON array of chat objects.
         """
-        qs = self.get_queryset()
-        serializer = self.get_serializer(qs, many=True, context={"request": request})
-        return Response(serializer.data)
+        user_id = request.user.id
+        cache_key = f"chat_list_{user_id}"
+        data = cache.get(cache_key)
+        if data is None:
+            qs = self.get_queryset()
+            data = ChatSerializer(qs, many=True, context={"request": request}).data
+            cache.set(cache_key, data, self.CACHE_TIMEOUT)
+        return Response(data)
 
     def post(self, request, *args, **kwargs):
         """
@@ -129,8 +134,8 @@ class ChatAPIView(
                 {"type": "chat_update", "data": read_ser.data},
             )
 
-        cache.delete_pattern(f"*{request.user.id}*/api/v1/chat/chats*")
-        cache.delete_pattern(f"*{to_user_id}*/api/v1/chat/chats*")
+        cache.delete(f"chat_list_{request.user.id}")
+        cache.delete(f"chat_list_{to_user_id}")
         return Response(read_ser.data, status=status.HTTP_201_CREATED)
 
 
