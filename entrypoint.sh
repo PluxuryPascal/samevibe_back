@@ -1,7 +1,6 @@
 #!/bin/sh
 set -ex
 
-# Жёстко указываем имя хоста PostgreSQL (имя сервиса в Docker Compose)
 PG_HOST="db"
 PG_PORT="5432"
 

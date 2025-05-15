@@ -11,7 +11,7 @@ RUN apt-get update \
 WORKDIR /app
 
 # 2) Скопируем зависимости и установим их
-COPY requirements.txt ./
+COPY   ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 3) Скопируем весь код проекта
